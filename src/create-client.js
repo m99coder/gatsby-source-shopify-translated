@@ -19,6 +19,6 @@ export const createClient = (
       "X-Shopify-Storefront-Access-Token": accessToken,
       "Accept-Language": language,
     },
-    timeout: 100000000
+    timeout: 100000000,
   })
 }
