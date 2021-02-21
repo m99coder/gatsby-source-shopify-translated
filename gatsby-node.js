@@ -15,6 +15,8 @@ var _lib = require("gatsby-source-shopify/lib")
 
 var _createClient = require("./create-client")
 
+var _lib2 = require("./lib")
+
 var _nodes = require("gatsby-source-shopify/nodes")
 
 var _constants = require("gatsby-source-shopify/constants")
@@ -203,7 +205,7 @@ const createNodes = async (
     languages,
     async locale =>
       await (0, _pIteration.forEach)(
-        await (0, _lib.queryAll)(
+        await (0, _lib2.queryAll)(
           createTranslatedClient(locale),
           [_constants.NODE_TO_ENDPOINT_MAPPING[endpoint]],
           query,
@@ -300,7 +302,7 @@ const createPageNodes = async (
   if (verbose) console.time(msg)
   await (0, _pIteration.forEach)(languages, async locale => {
     await (0, _pIteration.forEach)(
-      await (0, _lib.queryAll)(
+      await (0, _lib2.queryAll)(
         createTranslatedClient(locale),
         [_constants.NODE_TO_ENDPOINT_MAPPING[endpoint]],
         query,
