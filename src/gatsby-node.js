@@ -1,7 +1,11 @@
 import { pipe } from "lodash/fp"
 import chalk from "chalk"
 import { forEach } from "p-iteration"
-import { printGraphQLError, queryAll, queryOnce } from "gatsby-source-shopify/lib"
+import {
+  printGraphQLError,
+  queryAll,
+  queryOnce,
+} from "gatsby-source-shopify/lib"
 import { createClient } from "./create-client"
 
 import {
@@ -55,12 +59,13 @@ export const sourceNodes = async (
     apiVersion = `2020-07`,
     verbose = true,
     paginationSize = 250,
-    languages = ['en'],
+    languages = ["en"],
     includeCollections = [SHOP, CONTENT],
     shopifyQueries = {},
   }
 ) => {
-  const createTranslatedClient = (locale) => createClient(shopName, accessToken, apiVersion, locale)
+  const createTranslatedClient = locale =>
+    createClient(shopName, accessToken, apiVersion, locale)
 
   const defaultQueries = {
     articles: ARTICLES_QUERY,
@@ -180,7 +185,15 @@ const createNodes = async (
   endpoint,
   query,
   nodeFactory,
-  { createTranslatedClient, createNode, formatMsg, verbose, imageArgs, paginationSize, languages },
+  {
+    createTranslatedClient,
+    createNode,
+    formatMsg,
+    verbose,
+    imageArgs,
+    paginationSize,
+    languages,
+  },
   f = async () => {}
 ) => {
   // Message printed when fetching is complete.
@@ -189,7 +202,7 @@ const createNodes = async (
   if (verbose) console.time(msg)
   await forEach(
     languages,
-    async locale => 
+    async locale =>
       await forEach(
         await queryAll(
           createTranslatedClient(locale),
@@ -198,7 +211,9 @@ const createNodes = async (
           paginationSize
         ),
         async entity => {
-          const node = await nodeFactory(imageArgs)(mapEntityIds(entity, locale))
+          const node = await nodeFactory(imageArgs)(
+            mapEntityIds(entity, locale)
+          )
           createNode(node)
           await f(entity, node)
         }
@@ -216,19 +231,19 @@ const createShopDetails = async ({
   formatMsg,
   verbose,
   queries,
-  languages, 
+  languages,
 }) => {
   // // Message printed when fetching is complete.
   const msg = formatMsg(`fetched and processed ${SHOP_DETAILS} nodes`)
 
   if (verbose) console.time(msg)
-  await forEach(
-    languages,
-    async locale => {
-      const { shop } = await queryOnce(createTranslatedClient(locale), queries.shopDetails)
-      createNode(ShopDetailsNode(nodeWithLocale(shop, locale)))
-    }
-  )
+  await forEach(languages, async locale => {
+    const { shop } = await queryOnce(
+      createTranslatedClient(locale),
+      queries.shopDetails
+    )
+    createNode(ShopDetailsNode(nodeWithLocale(shop, locale)))
+  })
   if (verbose) console.timeEnd(msg)
 }
 
@@ -247,18 +262,22 @@ const createShopPolicies = async ({
   const msg = formatMsg(`fetched and processed ${SHOP_POLICY} nodes`)
 
   if (verbose) console.time(msg)
-  await forEach(
-    languages,
-    async locale => {
-      const { shop: policies } = await queryOnce(createTranslatedClient(locale), queries.shopPolicies)
+  await forEach(languages, async locale => {
+    const { shop: policies } = await queryOnce(
+      createTranslatedClient(locale),
+      queries.shopPolicies
+    )
 
-      Object.entries(policies)
-        .filter(([_, policy]) => Boolean(policy))
-        .forEach(
-          pipe(([type, policy]) => ShopPolicyNode(nodeWithLocale(policy, locale), { type }), createNode)
+    Object.entries(policies)
+      .filter(([_, policy]) => Boolean(policy))
+      .forEach(
+        pipe(
+          ([type, policy]) =>
+            ShopPolicyNode(nodeWithLocale(policy, locale), { type }),
+          createNode
         )
-    }
-  )
+      )
+  })
   if (verbose) console.timeEnd(msg)
 }
 
@@ -266,51 +285,67 @@ const createPageNodes = async (
   endpoint,
   query,
   nodeFactory,
-  { createTranslatedClient, createNode, formatMsg, verbose, paginationSize, languages },
+  {
+    createTranslatedClient,
+    createNode,
+    formatMsg,
+    verbose,
+    paginationSize,
+    languages,
+  },
   f = async () => {}
 ) => {
   // Message printed when fetching is complete.
   const msg = formatMsg(`fetched and processed ${endpoint} nodes`)
 
   if (verbose) console.time(msg)
-  await forEach(
-    languages,
-    async locale => {
-      await forEach(
-        await queryAll(
-          createTranslatedClient(locale),
-          [NODE_TO_ENDPOINT_MAPPING[endpoint]],
-          query,
-          paginationSize
-        ),
-        async entity => {
-          const node = await nodeFactory(entity)
-          createNode(nodeWithLocale(node, locale))
-          await f(entity)
-        }
-      )
-    }
-  )
+  await forEach(languages, async locale => {
+    await forEach(
+      await queryAll(
+        createTranslatedClient(locale),
+        [NODE_TO_ENDPOINT_MAPPING[endpoint]],
+        query,
+        paginationSize
+      ),
+      async entity => {
+        const node = await nodeFactory(entity)
+        createNode(nodeWithLocale(node, locale))
+        await f(entity)
+      }
+    )
+  })
   if (verbose) console.timeEnd(msg)
 }
 
-const nodeWithLocale = (node, locale) => ({ ...node, id: `${locale}__${node.id}`, locale })
+const nodeWithLocale = (node, locale) => ({
+  ...node,
+  id: `${locale}__${node.id}`,
+  locale,
+})
 
-const  mapEntityIds = (node, locale) => {
+const mapEntityIds = (node, locale) => {
   if (node.products) {
-      node.products.edges.forEach(edge => {edge.node = nodeWithLocale(edge.node, locale)})
+    node.products.edges.forEach(edge => {
+      edge.node = nodeWithLocale(edge.node, locale)
+    })
   }
   if (node.variants) {
-    node.variants.edges.forEach(edge => {edge.node = nodeWithLocale(edge.node, locale)})
+    node.variants.edges.forEach(edge => {
+      edge.node = nodeWithLocale(edge.node, locale)
+    })
   }
   if (node.metafields) {
-    node.metafields.edges.forEach(edge => {edge.node = nodeWithLocale(edge.node, locale)})
+    node.metafields.edges.forEach(edge => {
+      edge.node = nodeWithLocale(edge.node, locale)
+    })
   }
   if (node.options) {
     node.options = node.options.map(option => nodeWithLocale(option, locale))
   }
   if (node.comments) {
-    node.comments.forEach(edge => {edge.node = nodeWithLocale(edge.node, locale)})
+    node.comments.forEach(edge => {
+      edge.node = nodeWithLocale(edge.node, locale)
+    })
   }
   if (node.image) {
     node.image = nodeWithLocale(node.image, locale)
