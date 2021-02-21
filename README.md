@@ -52,8 +52,8 @@ plugins: [
 
       // Set the API version you want to use. For a list of available API versions,
       // see: https://help.shopify.com/en/api/storefront-api/reference/queryroot
-      // Defaults to 2019-07
-      apiVersion: "2020-01",
+      // Defaults to 2021-01
+      apiVersion: "2021-01",
 
       // Set verbose to true to display a verbose output on `npm run develop`
       // or `npm run build`. This prints which nodes are being fetched and how
@@ -96,9 +96,9 @@ plugins: [
         `,
       },
 
-      // List of langualges you want to fetch.
+      // List of languages you want to fetch.
       // Defaults to ['en'].
-      languages: ['en', 'de']
+      languages: ["en", "de"],
     },
   },
 ]
@@ -117,7 +117,7 @@ GraphQL model.
 
 ```graphql
 query GetLocalizedProducts($locale: String) {
-  allShopifyProduct(filter: {locale: {eq: $locale}})  {
+  allShopifyProduct(filter: { locale: { eq: $locale } }) {
     edges {
       node {
         id
@@ -474,19 +474,20 @@ const path = require("path")
 exports.createPages = async ({ graphql, boundActionCreators }) => {
   const { createPage } = boundActionCreators
 
-  const pages = await graphql(`
-    query GetLocalizedProducts($locale: String) {
-      allShopifyProduct(filter: {locale: {eq: $locale}})  {
-        edges {
-          node {
-            id
-            handle
+  const pages = await graphql(
+    `
+      query GetLocalizedProducts($locale: String) {
+        allShopifyProduct(filter: { locale: { eq: $locale } }) {
+          edges {
+            node {
+              id
+              handle
+            }
           }
         }
       }
-    }
-  `,
-  {  locale: "en" }
+    `,
+    { locale: "en" }
   )
 
   pages.data.allShopifyProduct.edges.forEach(edge => {
