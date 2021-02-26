@@ -1,6 +1,6 @@
 import { pipe } from "lodash/fp"
 import chalk from "chalk"
-import { forEach } from "p-iteration"
+import { forEach, forEachSeries } from "p-iteration"
 import { printGraphQLError, queryOnce } from "gatsby-source-shopify/lib"
 import { createClient } from "./create-client"
 import { queryAll } from "./lib"
@@ -56,7 +56,8 @@ export const sourceNodes = async (
     apiVersion = `2020-07`,
     verbose = true,
     paginationSize = 250,
-    languages = ["en"],
+    paginationDelay = 500,
+    languages = ['en'],
     includeCollections = [SHOP, CONTENT],
     shopifyQueries = {},
   }
@@ -103,6 +104,7 @@ export const sourceNodes = async (
       verbose,
       imageArgs,
       paginationSize,
+      paginationDelay,
       queries,
       languages,
     }
@@ -163,7 +165,9 @@ export const sourceNodes = async (
     }
 
     console.time(msg)
-    await Promise.all(promises)
+    for (const promise of promises) {
+      await promise
+    }
     console.timeEnd(msg)
   } catch (e) {
     console.error(chalk`\n{red error} an error occurred while sourcing data`)
@@ -182,30 +186,24 @@ const createNodes = async (
   endpoint,
   query,
   nodeFactory,
-  {
-    createTranslatedClient,
-    createNode,
-    formatMsg,
-    verbose,
-    imageArgs,
-    paginationSize,
-    languages,
-  },
+  { createTranslatedClient, createNode, formatMsg, verbose, imageArgs, paginationSize, paginationDelay, languages },
   f = async () => {}
 ) => {
   // Message printed when fetching is complete.
   const msg = formatMsg(`fetched and processed ${endpoint} nodes`)
 
   if (verbose) console.time(msg)
-  await forEach(
+
+  await forEachSeries(
     languages,
-    async locale =>
-      await forEach(
+    async locale => 
+      await forEachSeries(
         await queryAll(
           createTranslatedClient(locale),
           [NODE_TO_ENDPOINT_MAPPING[endpoint]],
           query,
-          paginationSize
+          paginationDelay,
+          paginationSize,
         ),
         async entity => {
           const node = await nodeFactory(imageArgs)(
@@ -282,35 +280,32 @@ const createPageNodes = async (
   endpoint,
   query,
   nodeFactory,
-  {
-    createTranslatedClient,
-    createNode,
-    formatMsg,
-    verbose,
-    paginationSize,
-    languages,
-  },
+  { createTranslatedClient, createNode, formatMsg, verbose, paginationSize, paginationDelay, languages },
   f = async () => {}
 ) => {
   // Message printed when fetching is complete.
   const msg = formatMsg(`fetched and processed ${endpoint} nodes`)
 
   if (verbose) console.time(msg)
-  await forEach(languages, async locale => {
-    await forEach(
-      await queryAll(
-        createTranslatedClient(locale),
-        [NODE_TO_ENDPOINT_MAPPING[endpoint]],
-        query,
-        paginationSize
-      ),
-      async entity => {
-        const node = await nodeFactory(entity)
-        createNode(nodeWithLocale(node, locale))
-        await f(entity)
-      }
-    )
-  })
+  await forEach(
+    languages,
+    async locale => {
+      await forEach(
+        await queryAll(
+          createTranslatedClient(locale),
+          [NODE_TO_ENDPOINT_MAPPING[endpoint]],
+          query,
+          paginationDelay,
+          paginationSize
+        ),
+        async entity => {
+          const node = await nodeFactory(entity)
+          createNode(nodeWithLocale(node, locale))
+          await f(entity)
+        }
+      )
+    }
+  )
   if (verbose) console.timeEnd(msg)
 }
 

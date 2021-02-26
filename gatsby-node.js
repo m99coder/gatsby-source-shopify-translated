@@ -32,19 +32,23 @@ const sourceNodes = async (
     getCache,
     reporter,
   },
-  {
-    shopName,
-    accessToken,
-    apiVersion = `2021-01`,
-    verbose = true,
-    paginationSize = 250,
-    languages = ["en"],
-    includeCollections = [_constants.SHOP, _constants.CONTENT],
-    shopifyQueries = {},
-  }
-) => {
-  const createTranslatedClient = locale =>
-    (0, _createClient.createClient)(shopName, accessToken, apiVersion, locale)
+  createNodeId,
+  store,
+  cache,
+  getCache,
+  reporter
+}, {
+  shopName,
+  accessToken,
+  apiVersion = `2020-07`,
+  verbose = true,
+  paginationSize = 250,
+  paginationDelay = 500,
+  languages = ['en'],
+  includeCollections = [_constants.SHOP, _constants.CONTENT],
+  shopifyQueries = {}
+}) => {
+  const createTranslatedClient = locale => (0, _createClient.createClient)(shopName, accessToken, apiVersion, locale);
 
   const defaultQueries = {
     articles: _queries.ARTICLES_QUERY,
@@ -81,6 +85,7 @@ const sourceNodes = async (
       verbose,
       imageArgs,
       paginationSize,
+      paginationDelay,
       queries,
       languages,
     } // Message printed when fetching is complete.
@@ -165,9 +170,13 @@ const sourceNodes = async (
       ])
     }
 
-    console.time(msg)
-    await Promise.all(promises)
-    console.timeEnd(msg)
+    console.time(msg);
+
+    for (const promise of promises) {
+      await promise;
+    }
+
+    console.timeEnd(msg);
   } catch (e) {
     console.error(
       (0, _chalk.default)`\n{red error} an error occurred while sourcing data`
@@ -183,45 +192,28 @@ const sourceNodes = async (
 
 exports.sourceNodes = sourceNodes
 
-const createNodes = async (
-  endpoint,
-  query,
-  nodeFactory,
-  {
-    createTranslatedClient,
-    createNode,
-    formatMsg,
-    verbose,
-    imageArgs,
-    paginationSize,
-    languages,
-  },
-  f = async () => {}
-) => {
+exports.sourceNodes = sourceNodes;
+
+const createNodes = async (endpoint, query, nodeFactory, {
+  createTranslatedClient,
+  createNode,
+  formatMsg,
+  verbose,
+  imageArgs,
+  paginationSize,
+  paginationDelay,
+  languages
+}, f = async () => {}) => {
   // Message printed when fetching is complete.
-  const msg = formatMsg(`fetched and processed ${endpoint} nodes`)
-  if (verbose) console.time(msg)
-  await (0, _pIteration.forEach)(
-    languages,
-    async locale =>
-      await (0, _pIteration.forEach)(
-        await (0, _lib2.queryAll)(
-          createTranslatedClient(locale),
-          [_constants.NODE_TO_ENDPOINT_MAPPING[endpoint]],
-          query,
-          paginationSize
-        ),
-        async entity => {
-          const node = await nodeFactory(imageArgs)(
-            mapEntityIds(entity, locale)
-          )
-          createNode(node)
-          await f(entity, node)
-        }
-      )
-  )
-  if (verbose) console.timeEnd(msg)
-}
+  const msg = formatMsg(`fetched and processed ${endpoint} nodes`);
+  if (verbose) console.time(msg);
+  await (0, _pIteration.forEachSeries)(languages, async (locale) => await (0, _pIteration.forEachSeries)(await (0, _lib2.queryAll)(createTranslatedClient(locale), [_constants.NODE_TO_ENDPOINT_MAPPING[endpoint]], query, paginationDelay, paginationSize), async entity => {
+    const node = await nodeFactory(imageArgs)(mapEntityIds(entity, locale));
+    createNode(node);
+    await f(entity, node);
+  }));
+  if (verbose) console.timeEnd(msg);
+};
 /**
  * Fetch and create nodes for shop policies.
  */
@@ -264,62 +256,39 @@ const createShopPolicies = async ({
   const msg = formatMsg(`fetched and processed ${_constants.SHOP_POLICY} nodes`)
   if (verbose) console.time(msg)
   await (0, _pIteration.forEach)(languages, async locale => {
-    const { shop: policies } = await (0, _lib.queryOnce)(
-      createTranslatedClient(locale),
-      queries.shopPolicies
-    )
-    Object.entries(policies)
-      .filter(([_, policy]) => Boolean(policy))
-      .forEach(
-        (0, _fp.pipe)(
-          ([type, policy]) =>
-            (0, _nodes.ShopPolicyNode)(nodeWithLocale(policy, locale), {
-              type,
-            }),
-          createNode
-        )
-      )
-  })
-  if (verbose) console.timeEnd(msg)
-}
+    const {
+      shop: policies
+    } = await (0, _lib.queryOnce)(createTranslatedClient(locale), queries.shopPolicies);
+    Object.entries(policies).filter(([_, policy]) => Boolean(policy)).forEach((0, _fp.pipe)(([type, policy]) => (0, _nodes.ShopPolicyNode)(nodeWithLocale(policy, locale), {
+      type
+    }), createNode));
+  });
+  if (verbose) console.timeEnd(msg);
+};
 
-const createPageNodes = async (
-  endpoint,
-  query,
-  nodeFactory,
-  {
-    createTranslatedClient,
-    createNode,
-    formatMsg,
-    verbose,
-    paginationSize,
-    languages,
-  },
-  f = async () => {}
-) => {
+const createPageNodes = async (endpoint, query, nodeFactory, {
+  createTranslatedClient,
+  createNode,
+  formatMsg,
+  verbose,
+  paginationSize,
+  paginationDelay,
+  languages
+}, f = async () => {}) => {
   // Message printed when fetching is complete.
   const msg = formatMsg(`fetched and processed ${endpoint} nodes`)
   if (verbose) console.time(msg)
   await (0, _pIteration.forEach)(languages, async locale => {
-    await (0, _pIteration.forEach)(
-      await (0, _lib2.queryAll)(
-        createTranslatedClient(locale),
-        [_constants.NODE_TO_ENDPOINT_MAPPING[endpoint]],
-        query,
-        paginationSize
-      ),
-      async entity => {
-        const node = await nodeFactory(entity)
-        createNode(nodeWithLocale(node, locale))
-        await f(entity)
-      }
-    )
-  })
-  if (verbose) console.timeEnd(msg)
-}
+    await (0, _pIteration.forEach)(await (0, _lib2.queryAll)(createTranslatedClient(locale), [_constants.NODE_TO_ENDPOINT_MAPPING[endpoint]], query, paginationDelay, paginationSize), async entity => {
+      const node = await nodeFactory(entity);
+      createNode(nodeWithLocale(node, locale));
+      await f(entity);
+    });
+  });
+  if (verbose) console.timeEnd(msg);
+};
 
-const nodeWithLocale = (node, locale) => ({
-  ...node,
+const nodeWithLocale = (node, locale) => ({ ...node,
   id: `${locale}__${node.id}`,
   locale,
 })

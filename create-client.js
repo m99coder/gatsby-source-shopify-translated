@@ -20,10 +20,9 @@ const createClient = (shopName, accessToken, apiVersion, language = "en") => {
   return new _graphqlRequest.GraphQLClient(url, {
     headers: {
       "X-Shopify-Storefront-Access-Token": accessToken,
-      "Accept-Language": language,
-    },
-    timeout: 100000000,
-  })
-}
+      "Accept-Language": language
+    }
+  });
+};
 
 exports.createClient = createClient
